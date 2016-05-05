@@ -1,8 +1,8 @@
 package com.example
 
-import akka.actor.{Props, ActorSystem}
-import akka.camel.CamelExtension
-import com.example.actors.{MyQuartzActor, HelloWorldActor}
+import akka.actor.{Actor, ActorRef, Props, ActorSystem}
+import akka.camel.{Producer, CamelMessage, Consumer, CamelExtension}
+import com.example.actors.{MyQuartzConsumer, HelloWorldActor}
 import org.apache.camel.component.file.FileComponent
 import org.apache.camel.{Exchange, Processor}
 import org.apache.camel.builder.RouteBuilder
@@ -21,31 +21,39 @@ import org.apache.camel.builder.RouteBuilder
  *
  * @author alias
  */
-object HelloSimpleMain {
+object HelloSimpleMain  {
 
   def main(args: Array[String]): Unit = {
 
     val system = ActorSystem("my-system")
-//    system.actorOf(Props[MyQuartzActor])
+    val fileProducer = system.actorOf(Props[MyFileProducer])
+    val httpProducer = system.actorOf(Props(classOf[MyHttpProducer], fileProducer))
+    val quartzConsumer = system.actorOf(Props(classOf[MyQuartzConsumer], httpProducer))
 
-//    val initialActor = classOf[HelloWorldActor].getName
-
-//    akka.Main.main(Array(initialActor))
-
-    CamelExtension(system).context.addRoutes(new CustomRouteBuilder)
   }
 
-  class CustomRouteBuilder extends RouteBuilder {
-    def configure {
-      from("quartz2://example?cron=0/10+*+*+*+*+?").process(new Processor() {
-        def process(exchange: Exchange) {
-          val format = new java.text.SimpleDateFormat("dd-MM-yyyy HH:MM:ss")
-          exchange.getOut.setHeader("org.apache.camel.file.name", "steve.txt")
-          exchange.getOut.setBody("message fired at : " +  format.format(new java.util.Date()))
-        }
-      })
-      .to("file:/Users/stevanrose/dev/temp")
+  class MyQuartzConsumer(httpProducer: ActorRef) extends Actor with Consumer {
+
+    def endpointUri = "quartz2://example?cron=0/10+*+*+*+*+?"
+
+    def receive = {
+
+      case msg => httpProducer forward msg
+
     }
+
+  }
+
+  class MyHttpProducer(fileProducer: ActorRef) extends Actor with Producer {
+
+    def endpointUri = "jetty:http://www.timeapi.org/utc/now.json"
+
+    override def routeResponse(msg: Any) { fileProducer forward msg }
+
+  }
+
+  class MyFileProducer extends Actor with Producer {
+    def endpointUri = "file:/Users/stevanrose/dev/temp"
   }
 
 }
