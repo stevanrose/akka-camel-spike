@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="SBT: org.apache.camel:camel-quartz2:2.17.0:jar">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.ivy2/cache/org.apache.camel/camel-quartz2/bundles/camel-quartz2-2.17.0.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
